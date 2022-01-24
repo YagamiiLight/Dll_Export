@@ -24,35 +24,64 @@ size_t get_file_size(fstream& file_stream) {
 	return size_file;
 }
 
-DWORD rva_convert_foa() {
-	
-	return 1;
+
+DWORD rva_convert_foa(DWORD relative_virtual_address, DWORD num_section_headers, PIMAGE_SECTION_HEADER section_header) {
+
+	PIMAGE_SECTION_HEADER next_section_header = PIMAGE_SECTION_HEADER((DWORD64)section_header + (DWORD)0x28);
+
+	for (int num = 0; num < num_section_headers - 1; num++) {
+
+		PIMAGE_SECTION_HEADER next_section_header = PIMAGE_SECTION_HEADER((DWORD64)section_header + (DWORD)0x28);
+
+		if ((section_header->VirtualAddress <= relative_virtual_address) and (relative_virtual_address <= next_section_header->VirtualAddress)) {
+
+			DWORD offset = DWORD(relative_virtual_address - section_header->VirtualAddress);
+			return DWORD(section_header->PointerToRawData + offset);
+			
+		}
+
+		section_header = next_section_header;
+
+	}
+
+	return NULL;
 
 }
 
+IMAGE_EXPORT_DIRECTORY read_export_directory(fstream& file_stream, DWORD p_export_directory) {
+	IMAGE_EXPORT_DIRECTORY export_directory;
+	file_stream.seekg(p_export_directory, readmode);
+	file_stream.read((char*)&export_directory, sizeof(export_directory));
+	return export_directory;
+	
+}
 
-IMAGE_DATA_DIRECTORY get_dll_export_dictory(fstream& file_stream, char* file_buffer_p) {
+
+DWORD dll_export_dictory_address(fstream& file_stream, char* file_buffer_p) {
 
 	PIMAGE_DOS_HEADER dos_header;
 	PIMAGE_NT_HEADERS nt_header;
 	PIMAGE_FILE_HEADER file_header;
 	PIMAGE_OPTIONAL_HEADER optional_header;
 	PIMAGE_SECTION_HEADER section_header;
+	PIMAGE_EXPORT_DIRECTORY export_directory;
 
 	size_t size_file = get_file_size(file_stream);
 
 	dos_header = PIMAGE_DOS_HEADER(file_buffer_p);
 	nt_header = PIMAGE_NT_HEADERS(file_buffer_p + dos_header->e_lfanew);
 	file_header = PIMAGE_FILE_HEADER(&(nt_header->FileHeader));
-
 	optional_header = PIMAGE_OPTIONAL_HEADER(&(nt_header->OptionalHeader));
-
 	section_header = PIMAGE_SECTION_HEADER((DWORD64)optional_header + (file_header->SizeOfOptionalHeader));
 
 	PIMAGE_DATA_DIRECTORY array_data_dictory = optional_header->DataDirectory;
 	IMAGE_DATA_DIRECTORY dll_export_dictory = array_data_dictory[0];
 
-	return dll_export_dictory;
+	DWORD foa_dll_export_dictory = rva_convert_foa(dll_export_dictory.VirtualAddress, file_header->NumberOfSections, section_header);
+
+	read_export_directory(file_stream,foa_dll_export_dictory);
+
+	return foa_dll_export_dictory;
 }
 
 
@@ -65,7 +94,7 @@ void read_export_dll(const string file_name) {
 
 	unique_ptr<char> unique_file_buffer = get_file_buffer(file_stream, size_file);
 	char* file_buffer_p = unique_file_buffer.get();
-	get_dll_export_dictory(file_stream, file_buffer_p);
+	dll_export_dictory_address(file_stream, file_buffer_p);
 
 	file_stream.close();
 }
