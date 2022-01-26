@@ -3,6 +3,7 @@
 #include<format>
 #include<string>
 #include<windows.h>
+#include<vector>
 #include"dll_export.hpp"
 
 using namespace std;
@@ -37,7 +38,7 @@ DWORD rva_convert_foa(DWORD relative_virtual_address, DWORD num_section_headers,
 
 			DWORD offset = DWORD(relative_virtual_address - section_header->VirtualAddress);
 			return DWORD(section_header->PointerToRawData + offset);
-			
+
 		}
 
 		section_header = next_section_header;
@@ -53,8 +54,31 @@ IMAGE_EXPORT_DIRECTORY read_export_directory(fstream& file_stream, DWORD p_expor
 	file_stream.seekg(p_export_directory, readmode);
 	file_stream.read((char*)&export_directory, sizeof(export_directory));
 	return export_directory;
-	
+
 }
+
+vector<string> read_dictory_names(fstream& file_stream, DWORD dictory_names) {
+
+	cout << hex << dictory_names << endl;
+
+
+	char* name = new char[100];
+	vector<string> vec_dictory_names;
+
+	file_stream.seekg(dictory_names, readmode);
+	//file_stream.getline(name, 1);
+	file_stream.read(name, 100);
+	//file_stream.read(reinterpret_cast<char*>(&name), sizeof(name));
+
+	cout << name << endl;
+	//dictory_names.emplace_back();
+
+	return vec_dictory_names;
+}
+
+
+
+
 
 
 DWORD dll_export_dictory_address(fstream& file_stream, char* file_buffer_p) {
@@ -64,7 +88,7 @@ DWORD dll_export_dictory_address(fstream& file_stream, char* file_buffer_p) {
 	PIMAGE_FILE_HEADER file_header;
 	PIMAGE_OPTIONAL_HEADER optional_header;
 	PIMAGE_SECTION_HEADER section_header;
-	PIMAGE_EXPORT_DIRECTORY export_directory;
+	IMAGE_EXPORT_DIRECTORY export_directory;
 
 	size_t size_file = get_file_size(file_stream);
 
@@ -77,11 +101,17 @@ DWORD dll_export_dictory_address(fstream& file_stream, char* file_buffer_p) {
 	PIMAGE_DATA_DIRECTORY array_data_dictory = optional_header->DataDirectory;
 	IMAGE_DATA_DIRECTORY dll_export_dictory = array_data_dictory[0];
 
-	DWORD foa_dll_export_dictory = rva_convert_foa(dll_export_dictory.VirtualAddress, file_header->NumberOfSections, section_header);
+	DWORD foa_export_dictory = rva_convert_foa(dll_export_dictory.VirtualAddress, file_header->NumberOfSections, section_header);
 
-	read_export_directory(file_stream,foa_dll_export_dictory);
+	export_directory = read_export_directory(file_stream, foa_export_dictory);
 
-	return foa_dll_export_dictory;
+	DWORD foa_export_names_dictory = rva_convert_foa(export_directory.AddressOfNames, file_header->NumberOfSections, section_header);
+
+	read_dictory_names(file_stream, foa_export_names_dictory);
+
+
+
+	return foa_export_dictory;
 }
 
 
