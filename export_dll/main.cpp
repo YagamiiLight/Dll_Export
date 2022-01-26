@@ -57,21 +57,19 @@ IMAGE_EXPORT_DIRECTORY read_export_directory(fstream& file_stream, DWORD p_expor
 
 }
 
-vector<string> read_dictory_names(fstream& file_stream, DWORD dictory_names) {
+vector<string> read_dictory_names(fstream& file_stream, DWORD address_dictory_names) {
+
+	
+
+	DWORD dictory_names;
+	vector<string> vec_dictory_names;
+
+	file_stream.seekg(address_dictory_names, readmode);
+	
+	file_stream.read((char*)(&dictory_names), sizeof(dictory_names));
 
 	cout << hex << dictory_names << endl;
 
-
-	char* name = new char[100];
-	vector<string> vec_dictory_names;
-
-	file_stream.seekg(dictory_names, readmode);
-	//file_stream.getline(name, 1);
-	file_stream.read(name, 100);
-	//file_stream.read(reinterpret_cast<char*>(&name), sizeof(name));
-
-	cout << name << endl;
-	//dictory_names.emplace_back();
 
 	return vec_dictory_names;
 }
@@ -97,6 +95,7 @@ DWORD dll_export_dictory_address(fstream& file_stream, char* file_buffer_p) {
 	file_header = PIMAGE_FILE_HEADER(&(nt_header->FileHeader));
 	optional_header = PIMAGE_OPTIONAL_HEADER(&(nt_header->OptionalHeader));
 	section_header = PIMAGE_SECTION_HEADER((DWORD64)optional_header + (file_header->SizeOfOptionalHeader));
+	
 
 	PIMAGE_DATA_DIRECTORY array_data_dictory = optional_header->DataDirectory;
 	IMAGE_DATA_DIRECTORY dll_export_dictory = array_data_dictory[0];
@@ -131,7 +130,7 @@ void read_export_dll(const string file_name) {
 
 int main() {
 
-	const string file_path = "C:\\Users\\A\\Desktop\\shit\\kernel32.dll";
+	const string file_path = "C:\\Users\\chris\\Desktop\\chaos\\kernel32.dll";
 
 	read_export_dll(file_path);
 
